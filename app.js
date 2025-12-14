@@ -103,7 +103,11 @@ function setupEventListeners() {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', (e) => {
-                const key = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase()); // kebab-to-camel
+                let key = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase()); // kebab-to-camel
+
+                // Manual mapping fix
+                if (id === 'tournament-name') key = 'name';
+
                 const val = el.type === 'checkbox' ? el.checked : el.value;
                 state.setup[key] = val;
                 saveState();
