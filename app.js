@@ -53,7 +53,7 @@ function init() {
 function setupEventListeners() {
     // Theme
     els.themeToggle.addEventListener('click', toggleTheme);
-    
+
     // Teams
     els.addTeamBtn.addEventListener('click', addTeam);
     els.newTeamInput.addEventListener('keypress', (e) => {
@@ -75,7 +75,7 @@ function setupEventListeners() {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            
+
             e.target.classList.add('active');
             document.getElementById(`${e.target.dataset.tab}-panel`).classList.add('active');
         });
@@ -92,10 +92,22 @@ function setupEventListeners() {
     els.importBtn.addEventListener('click', () => els.importFile.click());
     els.importFile.addEventListener('change', importData);
 
-    // Inputs
-    document.querySelectorAll('input, select').forEach(input => {
-        if (input.id && state.setup.hasOwnProperty(input.id)) { // Only bind setup inputs
-             // We'll bind these manually in renderSetup to avoid issues
+    // Setup Inputs - Real-time sync
+    const setupInputs = [
+        'tournament-name', 'games-to', 'cycles',
+        'win-by-two', 'allow-ties', 'shuffle-pairs',
+        'winner-mode', 'create-final'
+    ];
+
+    setupInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', (e) => {
+                const key = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase()); // kebab-to-camel
+                const val = el.type === 'checkbox' ? el.checked : el.value;
+                state.setup[key] = val;
+                saveState();
+            });
         }
     });
 }
@@ -138,7 +150,7 @@ function generateSchedule() {
         if (state.setup.shufflePairs) {
             cyclePairs = shuffleArray(cyclePairs); // Deterministic shuffle could be added if needed
         }
-        
+
         cyclePairs.forEach((pair, idx) => {
             matches.push({
                 id: `m_${c}_${idx}`,
@@ -188,7 +200,7 @@ function updateMatch(matchId, scoreA, scoreB) {
 
     match.scoreA = scoreA === '' ? '' : parseInt(scoreA);
     match.scoreB = scoreB === '' ? '' : parseInt(scoreB);
-    
+
     // Determine completion
     if (match.scoreA !== '' && match.scoreB !== '') {
         // Validation logic could go here (e.g. win by 2 check)
@@ -205,11 +217,11 @@ function updateMatch(matchId, scoreA, scoreB) {
 function calculateStandings() {
     const stats = {};
     state.setup.teams.forEach(t => {
-        stats[t.id] = { 
-            id: t.id, 
-            name: t.name, 
-            mp: 0, w: 0, l: 0, t: 0, 
-            pf: 0, pa: 0, pd: 0 
+        stats[t.id] = {
+            id: t.id,
+            name: t.name,
+            mp: 0, w: 0, l: 0, t: 0,
+            pf: 0, pa: 0, pd: 0
         };
     });
 
@@ -217,7 +229,7 @@ function calculateStandings() {
         if (m.completed) {
             const sA = m.scoreA;
             const sB = m.scoreB;
-            
+
             stats[m.teamA].mp++;
             stats[m.teamB].mp++;
             stats[m.teamA].pf += sA;
@@ -255,7 +267,7 @@ function calculateStandings() {
         // Tiebreakers
         if (diff === 0) diff = b.pf - a.pf; // Points For
         // Head-to-head could be added here but is complex for N-way ties
-        
+
         return diff;
     });
 }
@@ -273,7 +285,7 @@ function checkFinals(standings) {
     // Check for tie in top 2
     const top1 = standings[0];
     const top2 = standings[1];
-    
+
     // Simple tie check based on sort criteria
     let isTied = false;
     if (state.setup.winnerMode === 'pd_wins') {
@@ -310,7 +322,7 @@ function checkFinals(standings) {
 
 function render() {
     document.body.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
-    
+
     if (state.status === 'setup') {
         els.setupView.classList.add('active');
         els.tournamentView.classList.remove('active');
@@ -351,7 +363,7 @@ function renderSetup() {
 
 function renderSchedule() {
     els.scheduleList.innerHTML = '';
-    
+
     const matchesToRender = [...state.matches];
     const completedCount = matchesToRender.filter(m => m.completed).length;
     const progress = Math.round((completedCount / matchesToRender.length) * 100) || 0;
@@ -365,12 +377,12 @@ function renderSchedule() {
 function createMatchCard(match) {
     const teamA = state.setup.teams.find(t => t.id === match.teamA);
     const teamB = state.setup.teams.find(t => t.id === match.teamB);
-    
+
     if (!teamA || !teamB) return document.createElement('div');
 
     const div = document.createElement('div');
     div.className = `match-card ${match.completed ? 'completed' : ''}`;
-    
+
     const winnerA = match.completed && match.scoreA > match.scoreB;
     const winnerB = match.completed && match.scoreB > match.scoreA;
 
@@ -407,7 +419,7 @@ function createMatchCard(match) {
 function renderStandings() {
     const standings = calculateStandings();
     els.standingsTable.innerHTML = '';
-    
+
     standings.forEach((s, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -441,7 +453,7 @@ function updateChampion(standings) {
     if (allCompleted && finalCompleted) {
         els.championSection.classList.remove('hidden');
         let champion = standings[0];
-        
+
         if (state.finalMatch && state.finalMatch.completed) {
             if (state.finalMatch.scoreA > state.finalMatch.scoreB) {
                 champion = state.setup.teams.find(t => t.id === state.finalMatch.teamA);
@@ -449,7 +461,7 @@ function updateChampion(standings) {
                 champion = state.setup.teams.find(t => t.id === state.finalMatch.teamB);
             }
         }
-        
+
         els.championName.textContent = champion.name;
     } else {
         els.championSection.classList.add('hidden');
@@ -497,9 +509,9 @@ function exportData() {
 function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const data = JSON.parse(e.target.result);
             Object.assign(state, data);
