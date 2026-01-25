@@ -198,6 +198,10 @@ function startTournament() {
     render();
 }
 
+// Funny Commentary Phrases
+const winnerPhrases = ["Absolute Unit", "Too EZ", "Chef's Kiss", "Goated", "Unstoppable", "Built Different", "Clutch"];
+const loserPhrases = ["Emotional Damage", "Skill Issue", "Maybe Next Time", "Hold This L", "Needs Practice", "Oof Size: Large", "Lag?"];
+
 function updateMatch(matchId, scoreA, scoreB) {
     const match = state.matches.find(m => m.id === matchId) || (state.finalMatch && state.finalMatch.id === matchId ? state.finalMatch : null);
     if (!match) return;
@@ -207,14 +211,32 @@ function updateMatch(matchId, scoreA, scoreB) {
 
     // Determine completion
     if (match.scoreA !== '' && match.scoreB !== '') {
-        // Validation logic could go here (e.g. win by 2 check)
         match.completed = true;
+
+        // Assign commentary if not present
+        if (!match.commentaryA || !match.commentaryB) {
+            const wPhrase = winnerPhrases[Math.floor(Math.random() * winnerPhrases.length)];
+            const lPhrase = loserPhrases[Math.floor(Math.random() * loserPhrases.length)];
+            
+            if (match.scoreA > match.scoreB) {
+                match.commentaryA = wPhrase;
+                match.commentaryB = lPhrase;
+            } else if (match.scoreB > match.scoreA) {
+                match.commentaryA = lPhrase;
+                match.commentaryB = wPhrase;
+            } else {
+                match.commentaryA = "Mid";
+                match.commentaryB = "Mid";
+            }
+        }
     } else {
         match.completed = false;
+        match.commentaryA = null;
+        match.commentaryB = null;
     }
 
     saveState();
-    renderSchedule(); // Re-render to show winner highlight
+    renderSchedule();
     renderStandings();
 }
 
@@ -397,14 +419,20 @@ function createMatchCard(match) {
         </div>
         <div class="match-teams">
             <div class="team-row">
-                <span class="team-name ${winnerA ? 'winner' : ''}">${teamA.name}</span>
+                <div class="team-info">
+                    <span class="team-name ${winnerA ? 'winner' : ''}">${teamA.name}</span>
+                    ${match.commentaryA ? `<span class="commentary ${winnerA ? 'win-comment' : 'lose-comment'}">${match.commentaryA}</span>` : ''}
+                </div>
                 <input type="number" class="score-input" 
                     value="${match.scoreA}" 
-                    onchange="updateMatch('${match.id}', this.value, this.nextElementSibling.nextElementSibling.querySelector('input').value)"
+                    onchange="updateMatch('${match.id}', this.value, this.parentElement.nextElementSibling.querySelector('input').value)"
                     placeholder="-">
             </div>
             <div class="team-row">
-                <span class="team-name ${winnerB ? 'winner' : ''}">${teamB.name}</span>
+                <div class="team-info">
+                    <span class="team-name ${winnerB ? 'winner' : ''}">${teamB.name}</span>
+                    ${match.commentaryB ? `<span class="commentary ${winnerB ? 'win-comment' : 'lose-comment'}">${match.commentaryB}</span>` : ''}
+                </div>
                 <input type="number" class="score-input" 
                     value="${match.scoreB}" 
                     onchange="updateMatch('${match.id}', this.parentElement.previousElementSibling.querySelector('input').value, this.value)"
@@ -425,6 +453,17 @@ function renderStandings() {
     els.standingsTable.innerHTML = '';
 
     standings.forEach((s, index) => {
+        // Vibe Check Logic
+        let vibe = 'N/A';
+        if (s.mp > 0) {
+            const winRate = s.w / s.mp;
+            if (winRate === 1) vibe = 'Untouchable 🌟';
+            else if (winRate > 0.5) vibe = 'Cooking 🍳';
+            else if (winRate === 0.5) vibe = 'Mid 😐';
+            else if (winRate === 0) vibe = 'Cooked 💀';
+            else vibe = 'Down Bad 📉';
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
@@ -435,6 +474,7 @@ function renderStandings() {
             <td>${s.pf}</td>
             <td>${s.pa}</td>
             <td>${s.pd > 0 ? '+' + s.pd : s.pd}</td>
+            <td style="text-align: center; font-weight: 500;">${vibe}</td>
         `;
         els.standingsTable.appendChild(tr);
     });

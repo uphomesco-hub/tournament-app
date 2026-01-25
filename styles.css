@@ -383,10 +383,30 @@ input:checked + .toggle-switch::after {
     align-items: center;
 }
 
+.team-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
 .team-name {
     font-weight: 600;
     font-size: 1.1rem;
-    flex: 1;
+}
+
+.commentary {
+    font-size: 0.75rem;
+    font-style: italic;
+    margin-top: 2px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.win-comment {
+    color: var(--success-color);
+}
+
+.lose-comment {
+    color: var(--danger-color);
 }
 
 .team-name.winner {
