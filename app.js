@@ -346,8 +346,18 @@ function startTournament() {
 }
 
 // Funny Commentary Phrases
-const winnerPhrases = ["Absolute Unit", "Too EZ", "Chef's Kiss", "Goated", "Unstoppable", "Built Different", "Clutch"];
-const loserPhrases = ["Emotional Damage", "Skill Issue", "Maybe Next Time", "Hold This L", "Needs Practice", "Oof Size: Large", "Lag?"];
+const winnerPhrases = [
+    "Absolute Unit", "Too EZ", "Chef's Kiss", "Goated 🐐", "Unstoppable",
+    "Built Different", "Clutch", "Main Character Energy", "Pure Filth",
+    "Cold 🥶", "Light Work", "Sit Down", "Built for This", "No Diff",
+    "Him. 😤", "W Code", "Total Carry"
+];
+const loserPhrases = [
+    "Emotional Damage", "Skill Issue", "Maybe Next Time", "Hold This L",
+    "Needs Practice", "Oof Size: Large", "Lag?", "Rent Free", "Down Bad",
+    "Ratio", "Touch Grass", "Controller Disconnected", "Choked",
+    "Tilted", "Main Character... in a horror movie", "Deserved"
+];
 
 function updateMatch(matchId, scoreA, scoreB) {
     const match = state.matches.find(m => m.id === matchId) || (state.finalMatch && state.finalMatch.id === matchId ? state.finalMatch : null);
@@ -701,15 +711,27 @@ function renderStandings() {
     els.standingsTable.innerHTML = '';
 
     standings.forEach((s, index) => {
-        // Vibe Check Logic
+        // Vibe Check Logic with Variety
+        const vibeTiers = {
+            untouchable: ["Untouchable 🌟", "God Mode ⚡", "Final Boss 👹", "Unstoppable 🚂", "Him 😤"],
+            cooking: ["Cooking 🍳", "On Fire 🔥", "In the Zone 🎯", "Locked In 🔒", "Grooving 🎸"],
+            mid: ["Mid 😐", "Balanced ⚖️", "Average Joe 🚶", "Coin Flip 🪙", "Room for Growth 🌱"],
+            downbad: ["Down Bad 📉", "Struggling 🧗", "Rough Day 🌧️", "Hanging In 🩹", "Lagging Life 🐌"],
+            cooked: ["Cooked 💀", "Zero Logic 🚫", "Pack it Up 📦", "Oof 📉", "Better luck in next life 👻"]
+        };
+
         let vibe = 'N/A';
         if (s.mp > 0) {
             const winRate = s.w / s.mp;
-            if (winRate === 1) vibe = 'Untouchable 🌟';
-            else if (winRate > 0.5) vibe = 'Cooking 🍳';
-            else if (winRate === 0.5) vibe = 'Mid 😐';
-            else if (winRate === 0) vibe = 'Cooked 💀';
-            else vibe = 'Down Bad 📉';
+            let list = [];
+            if (winRate === 1) list = vibeTiers.untouchable;
+            else if (winRate > 0.5) list = vibeTiers.cooking;
+            else if (winRate === 0.5) list = vibeTiers.mid;
+            else if (winRate === 0) list = vibeTiers.cooked;
+            else list = vibeTiers.downbad;
+
+            // Pick based on team name length or similar to stay consistent but random-ish
+            vibe = list[s.name.length % list.length];
         }
 
         const tr = document.createElement('tr');
