@@ -193,9 +193,7 @@ function shareResults() {
 
     if (navigator.share) {
         navigator.share({
-            title: state.setup.name || 'Tournament Results',
-            text: shareText,
-            url: siteUrl
+            text: shareText
         }).catch(err => {
             copyToClipboard(shareText);
         });
