@@ -9,7 +9,7 @@
     --border-color: #e5e7eb;
     --input-bg: #ffffff;
     --success-color: #16a34a;
-    --shadow: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --radius: 12px;
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -25,7 +25,7 @@
     --border-color: #333333;
     --input-bg: #2d2d2d;
     --success-color: #22c55e;
-    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -101,7 +101,7 @@ button {
     right: 0;
     background-color: var(--card-bg);
     min-width: 160px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -143,8 +143,15 @@ main {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Cards & Forms */
@@ -189,7 +196,8 @@ select {
     font-size: 1rem;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
     outline: 2px solid var(--primary-color);
     border-color: transparent;
 }
@@ -264,14 +272,14 @@ input:focus, select:focus {
     background-color: white;
     border-radius: 50%;
     transition: transform 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-input:checked + .toggle-switch {
+input:checked+.toggle-switch {
     background-color: var(--primary-color);
 }
 
-input:checked + .toggle-switch::after {
+input:checked+.toggle-switch::after {
     transform: translateX(20px);
 }
 
@@ -446,7 +454,8 @@ table {
     min-width: 300px;
 }
 
-th, td {
+th,
+td {
     padding: 0.75rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
@@ -462,6 +471,37 @@ th {
 
 td {
     font-size: 0.95rem;
+}
+
+.team-standings-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.vibe-subtext {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 2px;
+    display: block;
+    /* Visible on Mobile */
+}
+
+/* Hide Column on Mobile */
+.vibe-col {
+    display: none !important;
+}
+
+@media (min-width: 601px) {
+    .vibe-subtext {
+        display: none !important;
+        /* Force hide subtext on Desktop */
+    }
+
+    .vibe-col {
+        display: table-cell !important;
+        /* Force show column on Desktop */
+    }
 }
 
 tr:last-child td {
@@ -511,4 +551,24 @@ tr:last-child td {
         position: sticky;
         top: 90px;
     }
+}
+
+/* Bracket View */
+.bracket-round {
+    margin-bottom: 2rem;
+}
+
+.bracket-round h4 {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+/* Utility */
+.hidden {
+    display: none !important;
 }

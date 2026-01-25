@@ -2,6 +2,7 @@
 const state = {
     setup: {
         name: '',
+        type: 'round_robin', // round_robin, elimination
         teams: [],
         gamesTo: 11,
         cycles: 1,
@@ -11,7 +12,7 @@ const state = {
         winnerMode: 'pd_wins', // pd_wins, wins_pd, pd_only
         createFinal: false
     },
-    matches: [], // { id, cycle, teamA, teamB, scoreA, scoreB, completed }
+    matches: [], // { id, cycle, teamA, teamB, scoreA, scoreB, completed, nextMatchId, nextMatchSlot }
     status: 'setup', // setup, active
     finalMatch: null // { id: 'final', teamA, teamB, scoreA, scoreB, completed }
 };
@@ -27,7 +28,11 @@ const els = {
     teamCount: document.getElementById('team-count'),
     startBtn: document.getElementById('start-tournament-btn'),
     scheduleList: document.getElementById('schedule-list'),
+    schedulePanel: document.getElementById('schedule-panel'),
     standingsTable: document.getElementById('standings-table').querySelector('tbody'),
+    standingsContainer: document.getElementById('standings-container'),
+    standingsTitle: document.getElementById('standings-title'),
+    bracketContainer: document.getElementById('bracket-container'),
     themeToggle: document.getElementById('theme-toggle'),
     exportBtn: document.getElementById('export-btn'),
     importBtn: document.getElementById('import-btn'),
@@ -39,7 +44,10 @@ const els = {
     finalsSection: document.getElementById('finals-section'),
     finalMatchContainer: document.getElementById('final-match-container'),
     displayTournamentName: document.getElementById('display-tournament-name'),
-    progressText: document.getElementById('progress-text')
+    progressText: document.getElementById('progress-text'),
+    // Setup
+    tournamentType: document.getElementById('tournament-type'),
+    rrOptions: document.getElementById('rr-options')
 };
 
 // --- Initialization ---
@@ -53,6 +61,13 @@ function init() {
 function setupEventListeners() {
     // Theme
     els.themeToggle.addEventListener('click', toggleTheme);
+
+    // Tournament Type Toggle
+    els.tournamentType.addEventListener('change', (e) => {
+        state.setup.type = e.target.value;
+        saveState();
+        renderSetup();
+    });
 
     // Teams
     els.addTeamBtn.addEventListener('click', addTeam);
@@ -94,7 +109,7 @@ function setupEventListeners() {
 
     // Setup Inputs - Real-time sync
     const setupInputs = [
-        'tournament-name', 'games-to', 'cycles',
+        'tournament-name', 'tournament-type', 'games-to', 'cycles',
         'win-by-two', 'allow-ties', 'shuffle-pairs',
         'winner-mode', 'create-final'
     ];
@@ -107,9 +122,14 @@ function setupEventListeners() {
 
                 // Manual mapping fix
                 if (id === 'tournament-name') key = 'name';
+                if (id === 'tournament-type') key = 'type';
 
                 const val = el.type === 'checkbox' ? el.checked : el.value;
                 state.setup[key] = val;
+
+                if (id === 'tournament-type') {
+                    renderSetup(); // Re-render to toggle RR options
+                }
                 saveState();
             });
         }
@@ -135,6 +155,14 @@ function removeTeam(id) {
 }
 
 function generateSchedule() {
+    if (state.setup.type === 'elimination') {
+        generateEliminationBracket();
+    } else {
+        generateRoundRobinSchedule();
+    }
+}
+
+function generateRoundRobinSchedule() {
     const teams = state.setup.teams;
     if (teams.length < 2) return;
 
@@ -152,7 +180,7 @@ function generateSchedule() {
     for (let c = 1; c <= state.setup.cycles; c++) {
         let cyclePairs = [...pairs];
         if (state.setup.shufflePairs) {
-            cyclePairs = shuffleArray(cyclePairs); // Deterministic shuffle could be added if needed
+            cyclePairs = shuffleArray(cyclePairs);
         }
 
         cyclePairs.forEach((pair, idx) => {
@@ -172,23 +200,142 @@ function generateSchedule() {
     state.finalMatch = null;
 }
 
+function generateEliminationBracket() {
+    let teams = shuffleArray([...state.setup.teams]);
+
+    // Determine bracket size (next power of 2)
+    let bracketSize = 1;
+    while (bracketSize < teams.length) bracketSize *= 2;
+
+    let levels = [];
+    let currentSize = bracketSize;
+
+    while (currentSize > 1) {
+        let levelMatches = [];
+        for (let i = 0; i < currentSize / 2; i++) {
+            levelMatches.push({
+                id: `lvl_${currentSize}_m_${i}`,
+                roundName: getRoundName(currentSize),
+                teamA: null,
+                teamB: null,
+                scoreA: '',
+                scoreB: '',
+                completed: false,
+                nextMatchId: null,
+                nextMatchSlot: null
+            });
+        }
+        levels.push(levelMatches);
+        currentSize /= 2;
+    }
+
+    // Link matches (winner advances)
+    for (let i = 0; i < levels.length - 1; i++) {
+        const currentLevel = levels[i];
+        const nextLevel = levels[i + 1];
+
+        currentLevel.forEach((match, idx) => {
+            const nextMatchIdx = Math.floor(idx / 2);
+            const slot = idx % 2 === 0 ? 'teamA' : 'teamB';
+            match.nextMatchId = nextLevel[nextMatchIdx].id;
+            match.nextMatchSlot = slot;
+        });
+    }
+
+    // NEW: Flatten and assign to state.matches BEFORE filling slots
+    state.matches = levels.flat();
+    state.finalMatch = null;
+
+    // Interleaved team distribution to avoid BYE vs BYE
+    // Slots: 0, 2, 4, 6... then 1, 3, 5, 7...
+    const firstRound = levels[0];
+    const slotsMap = [];
+    for (let i = 0; i < firstRound.length; i++) {
+        slotsMap.push({ mIdx: i, slot: 'teamA' });
+    }
+    for (let i = 0; i < firstRound.length; i++) {
+        slotsMap.push({ mIdx: i, slot: 'teamB' });
+    }
+
+    // Fill teams into slots
+    teams.forEach((team, idx) => {
+        const target = slotsMap[idx];
+        firstRound[target.mIdx][target.slot] = team.id;
+    });
+
+    // Fill everything else with BYE
+    for (let i = teams.length; i < slotsMap.length; i++) {
+        const target = slotsMap[i];
+        firstRound[target.mIdx][target.slot] = 'BYE';
+    }
+
+    // Trigger initial advancements
+    firstRound.forEach(match => checkEliminationMatch(match));
+}
+
+function getRoundName(size) {
+    if (size === 2) return 'Finals';
+    if (size === 4) return 'Semi-Finals';
+    if (size === 8) return 'Quarter-Finals';
+    return `Round of ${size}`;
+}
+
+function checkEliminationMatch(match) {
+    if (!match.teamA || !match.teamB) return; // Wait for both slots to be filled
+
+    if (match.teamA === 'BYE' && match.teamB === 'BYE') {
+        match.scoreA = 0;
+        match.scoreB = 0;
+        match.completed = true;
+        advanceWinner(match, 'BYE');
+        return;
+    }
+    if (match.teamB === 'BYE') {
+        match.scoreA = 0;
+        match.scoreB = 0;
+        match.completed = true;
+        advanceWinner(match, match.teamA);
+        return;
+    }
+    if (match.teamA === 'BYE') {
+        match.scoreA = 0;
+        match.scoreB = 0;
+        match.completed = true;
+        advanceWinner(match, match.teamB);
+        return;
+    }
+}
+
+function advanceWinner(match, winnerId) {
+    if (!match.nextMatchId || !winnerId) return; // Finals or invalid winner
+
+    const nextMatch = state.matches.find(m => m.id === match.nextMatchId);
+    if (nextMatch) {
+        nextMatch[match.nextMatchSlot] = winnerId;
+        checkEliminationMatch(nextMatch);
+    }
+}
+
 function startTournament() {
     // Update setup state from DOM
     state.setup.name = document.getElementById('tournament-name').value;
-    state.setup.gamesTo = parseInt(document.getElementById('games-to').value);
-    state.setup.cycles = parseInt(document.getElementById('cycles').value);
-    state.setup.winByTwo = document.getElementById('win-by-two').checked;
-    state.setup.allowTies = document.getElementById('allow-ties').checked;
-    state.setup.shufflePairs = document.getElementById('shuffle-pairs').checked;
-    state.setup.winnerMode = document.getElementById('winner-mode').value;
-    state.setup.createFinal = document.getElementById('create-final').checked;
+    state.setup.type = document.getElementById('tournament-type').value;
+
+    if (state.setup.type === 'round_robin') {
+        state.setup.gamesTo = parseInt(document.getElementById('games-to').value);
+        state.setup.cycles = parseInt(document.getElementById('cycles').value);
+        state.setup.winByTwo = document.getElementById('win-by-two').checked;
+        state.setup.allowTies = document.getElementById('allow-ties').checked;
+        state.setup.shufflePairs = document.getElementById('shuffle-pairs').checked;
+        state.setup.winnerMode = document.getElementById('winner-mode').value;
+        state.setup.createFinal = document.getElementById('create-final').checked;
+    }
 
     if (state.setup.teams.length < 2) {
         alert('Please add at least 2 teams.');
         return;
     }
 
-    // Only regenerate if matches are empty or user confirms (implicit in UI flow usually, but good to be safe)
     if (state.matches.length === 0 || confirm('Regenerate schedule? This will clear existing scores.')) {
         generateSchedule();
     }
@@ -217,7 +364,7 @@ function updateMatch(matchId, scoreA, scoreB) {
         if (!match.commentaryA || !match.commentaryB) {
             const wPhrase = winnerPhrases[Math.floor(Math.random() * winnerPhrases.length)];
             const lPhrase = loserPhrases[Math.floor(Math.random() * loserPhrases.length)];
-            
+
             if (match.scoreA > match.scoreB) {
                 match.commentaryA = wPhrase;
                 match.commentaryB = lPhrase;
@@ -229,6 +376,16 @@ function updateMatch(matchId, scoreA, scoreB) {
                 match.commentaryB = "Mid";
             }
         }
+        // Elimination: advance winner
+        if (state.setup.type === 'elimination') {
+            let winnerId = null;
+            if (match.scoreA > match.scoreB) winnerId = match.teamA;
+            else if (match.scoreB > match.scoreA) winnerId = match.teamB;
+
+            if (winnerId) {
+                advanceWinner(match, winnerId);
+            }
+        }
     } else {
         match.completed = false;
         match.commentaryA = null;
@@ -236,8 +393,13 @@ function updateMatch(matchId, scoreA, scoreB) {
     }
 
     saveState();
-    renderSchedule();
-    renderStandings();
+
+    if (state.setup.type === 'elimination') {
+        renderBracket();
+    } else {
+        renderSchedule();
+        renderStandings();
+    }
 }
 
 function calculateStandings() {
@@ -350,21 +512,52 @@ function render() {
     document.body.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
 
     if (state.status === 'setup') {
+        els.setupView.classList.remove('hidden');
         els.setupView.classList.add('active');
+        els.tournamentView.classList.add('hidden');
         els.tournamentView.classList.remove('active');
         renderSetup();
     } else {
+        els.setupView.classList.add('hidden');
         els.setupView.classList.remove('active');
+        els.tournamentView.classList.remove('hidden');
         els.tournamentView.classList.add('active');
         els.displayTournamentName.textContent = state.setup.name || 'Tournament';
-        renderSchedule();
-        renderStandings();
+
+        if (state.setup.type === 'elimination') {
+            // Hide RR panels, show bracket
+            els.schedulePanel.classList.add('hidden');
+            els.standingsContainer.classList.add('hidden');
+            els.bracketContainer.classList.remove('hidden');
+            els.standingsTitle.textContent = 'Bracket';
+
+            // Mobile tabs
+            document.querySelector('[data-tab="schedule"]').style.display = 'none';
+            document.querySelector('[data-tab="standings"]').textContent = 'Bracket';
+            document.querySelector('[data-tab="standings"]').click();
+
+            renderBracket();
+        } else {
+            // Show RR panels
+            els.schedulePanel.classList.remove('hidden');
+            els.standingsContainer.classList.remove('hidden');
+            els.bracketContainer.classList.add('hidden');
+            els.standingsTitle.textContent = 'Standings';
+
+            // Mobile tabs
+            document.querySelector('[data-tab="schedule"]').style.display = 'block';
+            document.querySelector('[data-tab="standings"]').textContent = 'Standings';
+
+            renderSchedule();
+            renderStandings();
+        }
     }
 }
 
 function renderSetup() {
     // Fill inputs
     document.getElementById('tournament-name').value = state.setup.name;
+    document.getElementById('tournament-type').value = state.setup.type || 'round_robin';
     document.getElementById('games-to').value = state.setup.gamesTo;
     document.getElementById('cycles').value = state.setup.cycles;
     document.getElementById('win-by-two').checked = state.setup.winByTwo;
@@ -372,6 +565,9 @@ function renderSetup() {
     document.getElementById('shuffle-pairs').checked = state.setup.shufflePairs;
     document.getElementById('winner-mode').value = state.setup.winnerMode;
     document.getElementById('create-final').checked = state.setup.createFinal;
+
+    // Show/hide RR options based on type
+    els.rrOptions.style.display = state.setup.type === 'elimination' ? 'none' : 'block';
 
     // Render Teams
     els.teamList.innerHTML = '';
@@ -401,10 +597,12 @@ function renderSchedule() {
 }
 
 function createMatchCard(match) {
-    const teamA = state.setup.teams.find(t => t.id === match.teamA);
-    const teamB = state.setup.teams.find(t => t.id === match.teamB);
+    // For Elimination, teams might be null, 'BYE', or IDs
+    const teamA = match.teamA === 'BYE' ? { name: 'BYE' } : state.setup.teams.find(t => t.id === match.teamA);
+    const teamB = match.teamB === 'BYE' ? { name: 'BYE' } : state.setup.teams.find(t => t.id === match.teamB);
 
-    if (!teamA || !teamB) return document.createElement('div');
+    const nameA = teamA ? teamA.name : 'TBD';
+    const nameB = teamB ? teamB.name : 'TBD';
 
     const div = document.createElement('div');
     div.className = `match-card ${match.completed ? 'completed' : ''}`;
@@ -412,40 +610,90 @@ function createMatchCard(match) {
     const winnerA = match.completed && match.scoreA > match.scoreB;
     const winnerB = match.completed && match.scoreB > match.scoreA;
 
+    // Disable inputs if TBD or BYE
+    const disabled = (nameA === 'TBD' || nameB === 'TBD' || nameA === 'BYE' || nameB === 'BYE');
+
     div.innerHTML = `
         <div class="match-header">
-            <span>Match #${match.id.split('_')[2] ? parseInt(match.id.split('_')[2]) + 1 : 'Final'}</span>
-            <span>Cycle ${match.cycle}</span>
+            <span>${match.roundName || ('Match #' + (match.id.split('_')[2] ? parseInt(match.id.split('_')[2]) + 1 : 'Final'))}</span>
+            <span>${match.cycle ? 'Cycle ' + match.cycle : ''}</span>
         </div>
         <div class="match-teams">
             <div class="team-row">
                 <div class="team-info">
-                    <span class="team-name ${winnerA ? 'winner' : ''}">${teamA.name}</span>
+                    <span class="team-name ${winnerA ? 'winner' : ''}">${nameA}</span>
                     ${match.commentaryA ? `<span class="commentary ${winnerA ? 'win-comment' : 'lose-comment'}">${match.commentaryA}</span>` : ''}
                 </div>
                 <input type="number" class="score-input" 
                     value="${match.scoreA}" 
+                    ${disabled ? 'disabled' : ''}
                     onchange="updateMatch('${match.id}', this.value, this.parentElement.nextElementSibling.querySelector('input').value)"
                     placeholder="-">
             </div>
             <div class="team-row">
                 <div class="team-info">
-                    <span class="team-name ${winnerB ? 'winner' : ''}">${teamB.name}</span>
+                    <span class="team-name ${winnerB ? 'winner' : ''}">${nameB}</span>
                     ${match.commentaryB ? `<span class="commentary ${winnerB ? 'win-comment' : 'lose-comment'}">${match.commentaryB}</span>` : ''}
                 </div>
                 <input type="number" class="score-input" 
                     value="${match.scoreB}" 
+                    ${disabled ? 'disabled' : ''}
                     onchange="updateMatch('${match.id}', this.parentElement.previousElementSibling.querySelector('input').value, this.value)"
                     placeholder="-">
             </div>
         </div>
-        ${match.completed ? `
+        ${match.completed && !disabled ? `
             <div class="match-actions">
                 <button class="clear-btn" onclick="updateMatch('${match.id}', '', '')">Clear Result</button>
             </div>
         ` : ''}
     `;
     return div;
+}
+
+function renderBracket() {
+    els.bracketContainer.innerHTML = '';
+
+    // Group by Round
+    const rounds = {};
+    state.matches.forEach(m => {
+        if (!rounds[m.roundName]) rounds[m.roundName] = [];
+        rounds[m.roundName].push(m);
+    });
+
+    const roundNames = [...new Set(state.matches.map(m => m.roundName))];
+
+    roundNames.forEach(rName => {
+        const roundDiv = document.createElement('div');
+        roundDiv.className = 'bracket-round';
+
+        const title = document.createElement('h4');
+        title.textContent = rName;
+        roundDiv.appendChild(title);
+
+        rounds[rName].forEach(match => {
+            if (match.teamA === 'BYE' && match.teamB === 'BYE') return; // Don't show double byes
+            roundDiv.appendChild(createMatchCard(match));
+        });
+
+        els.bracketContainer.appendChild(roundDiv);
+    });
+
+    // Update progress
+    const completedCount = state.matches.filter(m => m.completed).length;
+    const progress = Math.round((completedCount / state.matches.length) * 100) || 0;
+    els.progressText.textContent = `${progress}% Complete`;
+
+    // Champion
+    const finalMatch = state.matches[state.matches.length - 1];
+    if (finalMatch && finalMatch.completed) {
+        els.championSection.classList.remove('hidden');
+        const winnerId = finalMatch.scoreA > finalMatch.scoreB ? finalMatch.teamA : finalMatch.teamB;
+        const winner = state.setup.teams.find(t => t.id === winnerId);
+        els.championName.textContent = winner ? winner.name : 'BYE';
+    } else {
+        els.championSection.classList.add('hidden');
+    }
 }
 
 function renderStandings() {
@@ -467,14 +715,17 @@ function renderStandings() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td>${s.name}</td>
+            <td>
+                <div class="team-standings-name">${s.name}</div>
+                <div class="vibe-subtext">${vibe}</div>
+            </td>
             <td>${s.mp}</td>
             <td>${s.w}</td>
             <td>${s.l}</td>
             <td>${s.pf}</td>
             <td>${s.pa}</td>
             <td>${s.pd > 0 ? '+' + s.pd : s.pd}</td>
-            <td style="text-align: center; font-weight: 500;">${vibe}</td>
+            <td class="vibe-col" style="text-align: center; font-weight: 500;">${vibe}</td>
         `;
         els.standingsTable.appendChild(tr);
     });

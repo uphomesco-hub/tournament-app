@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <header>
         <div class="header-content">
@@ -32,7 +34,7 @@
         <section id="setup-view" class="view active">
             <div class="card">
                 <h2>Tournament Setup</h2>
-                
+
                 <div class="form-group">
                     <label for="tournament-name">Tournament Name</label>
                     <input type="text" id="tournament-name" placeholder="e.g. Friday Ping Pong">
@@ -47,50 +49,61 @@
                     </div>
                 </div>
 
-                <div class="config-grid">
-                    <div class="form-group">
-                        <label for="games-to">Games To</label>
-                        <input type="number" id="games-to" value="11" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="cycles">Cycles</label>
-                        <input type="number" id="cycles" value="1" min="1" title="How many times each pair plays">
-                    </div>
-                </div>
-
-                <div class="toggles">
-                    <label class="toggle-row">
-                        <span>Win by 2</span>
-                        <input type="checkbox" id="win-by-two" checked>
-                        <span class="toggle-switch"></span>
-                    </label>
-                    <label class="toggle-row">
-                        <span>Allow Ties</span>
-                        <input type="checkbox" id="allow-ties">
-                        <span class="toggle-switch"></span>
-                    </label>
-                    <label class="toggle-row">
-                        <span>Shuffle Pairs per Cycle</span>
-                        <input type="checkbox" id="shuffle-pairs" checked>
-                        <span class="toggle-switch"></span>
-                    </label>
-                </div>
-
                 <div class="form-group">
-                    <label for="winner-mode">Winner Criteria</label>
-                    <select id="winner-mode">
-                        <option value="pd_wins">Point Diff, then Wins</option>
-                        <option value="wins_pd">Wins, then Point Diff</option>
-                        <option value="pd_only">Point Diff Only</option>
+                    <label for="tournament-type">Tournament Type</label>
+                    <select id="tournament-type">
+                        <option value="round_robin">Round Robin (League)</option>
+                        <option value="elimination">Single Elimination (Knockout)</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label class="toggle-row">
-                        <span>Create Final Match if Tied</span>
-                        <input type="checkbox" id="create-final">
-                        <span class="toggle-switch"></span>
-                    </label>
+                <!-- Round Robin Options -->
+                <div id="rr-options">
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="games-to">Games To</label>
+                            <input type="number" id="games-to" value="11" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="cycles">Cycles</label>
+                            <input type="number" id="cycles" value="1" min="1" title="How many times each pair plays">
+                        </div>
+                    </div>
+
+                    <div class="toggles">
+                        <label class="toggle-row">
+                            <span>Win by 2</span>
+                            <input type="checkbox" id="win-by-two" checked>
+                            <span class="toggle-switch"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Allow Ties</span>
+                            <input type="checkbox" id="allow-ties">
+                            <span class="toggle-switch"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Shuffle Pairs per Cycle</span>
+                            <input type="checkbox" id="shuffle-pairs" checked>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="winner-mode">Winner Criteria</label>
+                        <select id="winner-mode">
+                            <option value="pd_wins">Point Diff, then Wins</option>
+                            <option value="wins_pd">Wins, then Point Diff</option>
+                            <option value="pd_only">Point Diff Only</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="toggle-row">
+                            <span>Create Final Match if Tied</span>
+                            <input type="checkbox" id="create-final">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
                 </div>
 
                 <button id="start-tournament-btn" class="primary-btn full-width">Start Tournament</button>
@@ -98,7 +111,7 @@
         </section>
 
         <!-- Tournament View -->
-        <section id="tournament-view" class="view hidden">
+        <section id="tournament-view" class="view">
             <div class="tournament-header">
                 <h2 id="display-tournament-name">Tournament</h2>
                 <button id="edit-setup-btn" class="text-btn">Edit Setup</button>
@@ -124,10 +137,12 @@
                     </div>
                 </div>
 
-                <!-- Standings Column -->
+                <!-- Standings Column (Round Robin) -->
                 <div id="standings-panel" class="panel">
-                    <h3>Standings</h3>
-                    <div class="table-container">
+                    <h3 id="standings-title">Standings</h3>
+
+                    <!-- Standings Table (RR) -->
+                    <div id="standings-container" class="table-container">
                         <table id="standings-table">
                             <thead>
                                 <tr>
@@ -139,7 +154,7 @@
                                     <th>PF</th>
                                     <th>PA</th>
                                     <th>PD</th>
-                                    <th>Vibe</th>
+                                    <th class="vibe-col">Vibe</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -147,7 +162,12 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
+                    <!-- Bracket Container (Elimination) -->
+                    <div id="bracket-container" class="hidden">
+                        <!-- Bracket rounds injected here -->
+                    </div>
+
                     <div id="champion-section" class="hidden">
                         <div class="champion-card">
                             <h3>🏆 Champion</h3>
@@ -167,4 +187,5 @@
     <input type="file" id="import-file" accept=".json" style="display: none;">
     <script src="app.js"></script>
 </body>
+
 </html>
