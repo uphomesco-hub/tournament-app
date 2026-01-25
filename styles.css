@@ -596,3 +596,62 @@ tr:last-child td {
 .hidden {
     display: none !important;
 }
+.champion-card {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+    padding: 2.5rem 2rem !important;
+    border-radius: var(--radius) !important;
+    text-align: center !important;
+    border: 2px solid #f59e0b !important;
+    color: #92400e !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="dark"] .champion-card {
+    background: linear-gradient(135deg, #78350f 0%, #451a03 100%) !important;
+    border-color: #b45309 !important;
+    color: #fef3c7 !important;
+}
+
+.champion-card h3 {
+    font-size: 0.9rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    margin-bottom: 0.75rem !important;
+    opacity: 0.8 !important;
+}
+
+#champion-name {
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 1.5rem !important;
+    line-height: 1.2 !important;
+}
+
+.share-btn {
+    background-color: #92400e !important;
+    color: #fef3c7 !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 99px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    transition: transform 0.2s, background-color 0.2s !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    cursor: pointer !important;
+}
+
+[data-theme="dark"] .share-btn {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+}
+
+.share-btn:hover {
+    transform: translateY(-2px) !important;
+    opacity: 0.9 !important;
+}
+
+.share-btn:active {
+    transform: translateY(0) !important;
+}
