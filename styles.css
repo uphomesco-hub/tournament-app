@@ -60,9 +60,21 @@ header {
     align-items: center;
 }
 
+.header-titles {
+    display: flex;
+    flex-direction: column;
+}
+
 h1 {
     font-size: 1.25rem;
     font-weight: 700;
+}
+
+.attribution {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-top: -2px;
 }
 
 .header-actions {
